@@ -3,7 +3,7 @@ Terraform script outline to deploy a scalable web application using GKE with mon
 
 1. Prometheus install from helm is issue currently same for grafana.
 2. I have setup separately Prometheus and Grafana using port forword, container ip
-3. shring useful links for reference below
+3. sharing useful links for reference below
 
 Gtrafana
 
