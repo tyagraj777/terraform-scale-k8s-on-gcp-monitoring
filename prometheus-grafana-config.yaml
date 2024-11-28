@@ -1,0 +1,120 @@
+# Prometheus Deployment
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 1
+  serviceAccountName: prometheus
+  serviceMonitorSelector: {}
+  resources:
+    requests:
+      memory: "400Mi"
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 2Gi
+
+---
+# Grafana Deployment
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  custom-dashboard.json: |
+    {
+       {
+         "dashboard": {
+           "id": null,
+           "title": "Kubernetes Cluster Monitoring",
+           "panels": [
+             {
+               "type": "graph",
+               "title": "Node CPU Usage",
+               "targets": [
+                 {
+                   "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                   "legendFormat": "{{ instance }}"
+                 }
+               ]
+             },
+             {
+               "type": "graph",
+               "title": "Memory Usage",
+               "targets": [
+                 {
+                   "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
+                   "legendFormat": "{{ instance }}"
+                 }
+               ]
+             }
+           ],
+           "schemaVersion": 16
+         }
+       }
+
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+      volumes:
+      - name: grafana-storage
+        emptyDir: {}
+
+---
+# Service for Prometheus
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  type: NodePort
+  ports:
+  - port: 9090
+    targetPort: 9090
+  selector:
+    app: prometheus
+
+---
+# Service for Grafana
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  type: NodePort
+  ports:
+  - port: 3000
+    targetPort: 3000
+  selector:
+    app: grafana
